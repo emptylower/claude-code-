@@ -2,6 +2,32 @@
 
 Claude Code 完成后自动发送通知的脚本，支持多种通知方式。
 
+## 🚀 一键安装（推荐）
+
+```bash
+# 直接下载并运行安装脚本
+curl -fsSL https://raw.githubusercontent.com/emptylower/claude-code-/main/install-claude-notifier.sh | bash
+
+# 或者克隆仓库后安装
+git clone https://github.com/emptylower/claude-code-.git
+cd claude-code-
+chmod +x install-claude-notifier.sh
+./install-claude-notifier.sh
+```
+
+**一键安装将自动完成：**
+- ✅ 环境检查（Python、pip、Claude Code）
+- ✅ 依赖安装（requests、python-dotenv）
+- ✅ 交互式配置通知方式
+- ✅ 自动生成配置文件
+- ✅ 功能测试和配置教程
+
+> 安装完成后，只需运行一条命令即可完成Claude Code Hooks配置。
+
+---
+
+## 🛠️ 手动安装
+
 ## 支持的通知方式
 
 - **macOS 系统通知**: 本地桌面通知
@@ -9,13 +35,13 @@ Claude Code 完成后自动发送通知的脚本，支持多种通知方式。
 - **Server酱通知**: 推送到微信（普通版本）
 - **Server酱Turbo通知**: 推送到微信公众号（Turbo版本，支持Markdown格式）
 
-## 安装依赖
+### 安装依赖
 
 ```bash
 pip install requests python-dotenv
 ```
 
-## 配置方法
+### 配置方法
 
 1. 复制配置文件模板：
 ```bash
@@ -43,11 +69,11 @@ cp .env.example .env
 - 获取推送 URL（如：`https://api.day.app/YOUR_KEY/`）
 - 在 `.env` 中设置：`IOS_PUSH_URL=你的Bark_URL`
 
-## 使用方法
+### 使用方法
 
 脚本会自动从 `.env` 文件读取配置，只有配置了相应密钥的通知方式才会启用。
 
-## 使用技巧
+## 💡 使用技巧
 
 ### 1. 快速测试
 
@@ -124,7 +150,7 @@ echo '{}' | python3 claude-notifier.py 2>> ~/logs/claude-notifications.log
 - 每个通知方式有10秒超时保护
 - 失败的通知不会影响其他通知方式
 
-## 安全说明
+## 🔒 安全说明
 
 - `.env` 文件已加入 `.gitignore`，不会被提交到仓库
 - 使用环境变量管理敏感配置，确保安全性
