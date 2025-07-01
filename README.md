@@ -84,14 +84,45 @@ cp .env.example .env
 echo '{"transcript_path": "/dev/null"}' | python3 ~/scripts/claude-notifier.py
 ```
 
-### 2. 在Claude Code中集成
+### 2. 在Claude Code中正确配置Hooks（重要）
 
-将脚本设置为Claude Code的完成hook：
+为了确保所有场景都能收到通知，需要配置两个关键的Hook事件：
+
+#### 方法一：使用交互式配置（推荐）
+
+在Claude Code中运行：
+```bash
+/hooks
+```
+
+然后按以下步骤配置：
+
+**步骤1：配置Notification Hook（等待交互时通知）**
+1. 选择 "Notification" 事件
+2. 添加命令：`python3 ~/scripts/claude-notifier.py`
+3. 保存配置
+
+**步骤2：配置Stop Hook（任务完成时通知）**  
+1. 选择 "Stop" 事件
+2. 添加命令：`python3 ~/scripts/claude-notifier.py`
+3. 保存配置
+
+#### 方法二：命令行配置
 
 ```bash
-# 添加到Claude Code配置
-claude config set completion_hook "python3 ~/scripts/claude-notifier.py"
+# 配置Notification Hook（等待授权、输入时触发）
+claude config hooks.Notification '[{"matcher": "", "hooks": [{"type": "command", "command": "python3 ~/scripts/claude-notifier.py"}]}]'
+
+# 配置Stop Hook（任务完成、中断时触发）
+claude config hooks.Stop '[{"matcher": "", "hooks": [{"type": "command", "command": "python3 ~/scripts/claude-notifier.py"}]}]'
 ```
+
+#### 双Hook配置的重要性
+
+- **Notification Hook**: 当Claude Code需要权限授予、登录激活、用户确认等交互时触发
+- **Stop Hook**: 当Claude Code完成任务、遇到错误或中断时触发  
+
+这样确保了**无论什么情况都能收到及时通知**！
 
 ### 3. 自定义通知内容
 

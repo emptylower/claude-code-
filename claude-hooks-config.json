@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/scripts/claude-notifier.py"
+            "command": "python3 ~/scripts/notification-debug.py"
           }
         ]
       }

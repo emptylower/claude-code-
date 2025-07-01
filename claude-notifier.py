@@ -79,6 +79,11 @@ class ClaudeNotifier:
             
             # 检测需要用户交互的停止情况
             interaction_patterns = [
+                # Claude Code特定的授权等待
+                (r'/login to activate|claude.*subscription.*activate|激活.*claude.*code', "claude_auth_required", "需要登录激活Claude Code"),
+                (r'visit.*claude\.ai.*login|访问.*claude\.ai.*登录', "claude_login_required", "需要访问claude.ai登录"),
+                (r'等待用户登录|waiting.*for.*login|waiting.*activation', "waiting_login", "等待用户登录激活"),
+                # 一般权限和交互
                 (r'permission.*required|grant.*permission|allow.*access', "permission_required", "需要授予权限"),
                 (r'please.*confirm|confirm.*\(y/n\)|do you want to', "confirmation_required", "需要用户确认"),
                 (r'enter.*password|provide.*credentials', "credentials_required", "需要输入凭据"),
