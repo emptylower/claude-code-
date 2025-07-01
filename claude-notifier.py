@@ -49,7 +49,7 @@ class ClaudeNotifier:
     
     def analyze_completion_status(self, transcript_path: str) -> Tuple[str, str, str]:
         """
-        分析对话记录判断完成状态
+        分析对话记录判断完成状态 - 重点关注最后的输出内容
         返回: (状态类型, 标题, 详细信息)
         """
         try:
@@ -60,44 +60,82 @@ class ClaudeNotifier:
             with open(expanded_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # 分析最后的内容（最近的2000字符）
-            recent_content = content[-2000:].lower()
+            # 只分析最后500字符的内容，重点关注最终输出
+            recent_content = content[-500:]
+            recent_lower = recent_content.lower()
             
-            # 错误模式检测
+            # 优先检测明显的错误标识（API ERROR等红色警告）
+            critical_error_patterns = [
+                (r'api error|api_error', "api_error", "API调用错误"),
+                (r'authentication.*failed|auth.*error', "auth_error", "认证失败"),
+                (r'rate.*limit.*exceeded|too many requests', "rate_limit", "请求频率超限"),
+                (r'network.*error|connection.*error', "network_error", "网络连接错误"),
+                (r'timeout.*error|request.*timeout', "timeout_error", "请求超时"),
+            ]
+            
+            for pattern, error_type, description in critical_error_patterns:
+                if re.search(pattern, recent_lower):
+                    return error_type, f"🚨 {description}", self._extract_recent_lines(content, 5)
+            
+            # 检测需要用户交互的停止情况
+            interaction_patterns = [
+                (r'permission.*required|grant.*permission|allow.*access', "permission_required", "需要授予权限"),
+                (r'please.*confirm|confirm.*\(y/n\)|do you want to', "confirmation_required", "需要用户确认"),
+                (r'enter.*password|provide.*credentials', "credentials_required", "需要输入凭据"),
+                (r'waiting.*for.*input|please.*provide', "input_required", "等待用户输入"),
+                (r'press.*any.*key|press.*enter', "key_required", "等待按键确认"),
+            ]
+            
+            for pattern, interaction_type, description in interaction_patterns:
+                if re.search(pattern, recent_lower):
+                    return interaction_type, f"⏸️ {description}", self._extract_recent_lines(content, 3)
+            
+            # 检测严重错误（但不是API错误）
             error_patterns = [
-                (r'error|failed|exception|traceback', "error", "遇到错误"),
-                (r'permission denied|access denied', "permission", "权限被拒绝"),
-                (r'not found|cannot find|missing', "missing", "文件或资源未找到"),
-                (r'timeout|timed out', "timeout", "操作超时"),
-                (r'connection.*refused|network.*error', "network", "网络连接问题"),
+                (r'fatal.*error|critical.*error', "fatal_error", "严重错误"),
+                (r'command.*not.*found|no such file', "command_error", "命令或文件未找到"),
+                (r'permission.*denied|access.*denied', "permission_denied", "权限被拒绝"),
+                (r'out of memory|memory.*error', "memory_error", "内存不足"),
             ]
             
             for pattern, error_type, description in error_patterns:
-                if re.search(pattern, recent_content):
-                    return error_type, f"❌ {description}", self._extract_error_details(content)
+                if re.search(pattern, recent_lower):
+                    return error_type, f"❌ {description}", self._extract_recent_lines(content, 5)
             
-            # 成功完成模式检测
+            # 检测成功完成的明确标识
             success_patterns = [
-                (r'completed successfully|task completed|finished successfully', "success", "任务成功完成"),
-                (r'tests? passed|all tests pass', "test_success", "测试通过"),
-                (r'deployed successfully|deployment complete', "deploy_success", "部署成功"),
-                (r'build successful|compilation successful', "build_success", "构建成功"),
-                (r'committed|pushed to|git push', "git_success", "代码已提交"),
+                (r'successfully.*completed|task.*completed.*successfully', "success", "任务成功完成"),
+                (r'tests?.*passed|all.*tests.*pass', "test_success", "测试通过"),
+                (r'build.*successful|compilation.*successful', "build_success", "构建成功"),
+                (r'deployed.*successfully|deployment.*complete', "deploy_success", "部署成功"),
+                (r'committed.*successfully|pushed.*successfully', "git_success", "代码提交成功"),
             ]
             
             for pattern, success_type, description in success_patterns:
-                if re.search(pattern, recent_content):
-                    return success_type, f"✅ {description}", self._extract_success_details(content)
-            
-            # 等待输入模式检测
-            if re.search(r'waiting for.*input|please provide|enter.*:', recent_content):
-                return "waiting", "⏳ 等待输入", "Claude 正在等待你的输入"
+                if re.search(pattern, recent_lower):
+                    return success_type, f"✅ {description}", self._extract_recent_lines(content, 3)
             
             # 默认完成状态
             return "completed", "🤖 Claude 完成响应", "检查终端查看详细结果"
             
         except Exception as e:
             return "error", "❌ 分析失败", f"无法分析对话记录: {str(e)}"
+    
+    def _extract_recent_lines(self, content: str, num_lines: int = 3) -> str:
+        """提取文件最后几行内容"""
+        lines = content.split('\n')
+        recent_lines = lines[-num_lines:] if len(lines) >= num_lines else lines
+        
+        # 过滤空行并格式化
+        meaningful_lines = []
+        for line in recent_lines:
+            stripped = line.strip()
+            if stripped and len(stripped) > 5:  # 过滤太短的行
+                meaningful_lines.append(stripped)
+        
+        if meaningful_lines:
+            return '\n'.join(meaningful_lines)
+        return "检查终端查看详细信息"
     
     def _extract_error_details(self, content: str) -> str:
         """提取错误详情"""
