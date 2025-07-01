@@ -98,24 +98,19 @@ install_dependencies() {
     fi
 }
 
-# 检查Claude Code是否安装
+# 检查Claude Code是否安装（可选）
 check_claude_code() {
     print_status "检查Claude Code..."
     
     if command_exists claude; then
         CLAUDE_VERSION=$(claude --version 2>/dev/null || echo "未知版本")
         print_success "Claude Code已安装: $CLAUDE_VERSION"
-        return 0
+        CLAUDE_INSTALLED=true
     else
         print_warning "未检测到Claude Code命令行工具"
-        echo "请确保已安装Claude Code并且claude命令在PATH中"
-        echo "下载地址: https://claude.ai/download"
-        read -p "是否继续安装通知脚本? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            print_error "安装已取消"
-            exit 1
-        fi
+        print_status "您可以稍后安装Claude Code并配置Hooks"
+        print_status "下载地址: https://claude.ai/download"
+        CLAUDE_INSTALLED=false
     fi
 }
 
@@ -247,9 +242,8 @@ test_notifications() {
 show_hooks_tutorial() {
     print_header "Claude Code Hooks 配置教程"
     
-    cat << EOF
-🎯 Claude Code Hooks 配置方法：
-
+    if [[ "$CLAUDE_INSTALLED" == "true" ]]; then
+        cat << EOF
 方法一：使用命令行配置 (推荐)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 配置完成时的通知Hook
@@ -319,6 +313,54 @@ claude config hooks.Stop '[{"matcher": "", "hooks": [{"type": "command", "comman
     ]
   }
 ]
+
+EOF
+    else
+        cat << EOF
+⚠️  请先安装Claude Code命令行工具
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+下载地址: https://claude.ai/download
+
+安装Claude Code后，使用以下方法配置Hooks：
+
+方法一：使用命令行配置 (推荐)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 配置完成时的通知Hook
+claude config hooks.Stop '[{"matcher": "", "hooks": [{"type": "command", "command": "$PYTHON_CMD $SCRIPT_PATH"}]}]'
+
+方法二：使用交互式配置
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. 在Claude Code中运行: /hooks
+2. 选择 "Stop" 事件
+3. 添加新的matcher（留空表示匹配所有）
+4. 添加新的hook，命令为: $PYTHON_CMD $SCRIPT_PATH
+5. 保存到 "User settings"
+
+方法三：手动编辑配置文件
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+编辑文件: ~/.claude/settings.json
+
+添加以下配置到 "hooks" 部分：
+
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$PYTHON_CMD $SCRIPT_PATH"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+    fi
+    
+    cat << EOF
 
 🚀 快速测试Hook：
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
