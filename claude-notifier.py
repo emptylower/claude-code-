@@ -12,10 +12,13 @@ import re
 import requests
 from datetime import datetime
 from typing import Tuple, Dict, Any
-from dotenv import load_dotenv
-
-# 加载环境变量
-load_dotenv()
+# 尝试加载环境变量，如果没有dotenv包则跳过
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # 如果没有dotenv，直接从系统环境变量读取
+    print("Warning: python-dotenv not installed. Using system environment variables only.", file=sys.stderr)
 
 
 class NotificationConfig:
@@ -29,9 +32,13 @@ class NotificationConfig:
     IOS_PUSH_URL = os.getenv('IOS_PUSH_URL', 'YOUR_BARK_URL')
     IOS_PUSH_KEY = os.getenv('IOS_PUSH_KEY', 'YOUR_PUSH_KEY')
     
-    # Server酱配置
+    # Server酱配置 (普通版本)
     ENABLE_SERVER_CHAN = os.getenv('SERVER_CHAN_KEY', '').strip() != ''
     SERVER_CHAN_KEY = os.getenv('SERVER_CHAN_KEY', 'YOUR_SERVER_CHAN_KEY')
+    
+    # Server酱Turbo配置 (支持微信公众号推送)
+    ENABLE_SERVER_CHAN_TURBO = os.getenv('SERVER_CHAN_TURBO_KEY', '').strip() != ''
+    SERVER_CHAN_TURBO_KEY = os.getenv('SERVER_CHAN_TURBO_KEY', 'YOUR_SERVER_CHAN_TURBO_KEY')
 
 
 class ClaudeNotifier:
@@ -203,6 +210,46 @@ class ClaudeNotifier:
         except Exception as e:
             print(f"Server酱 通知发送失败: {e}", file=sys.stderr)
     
+    def send_server_chan_turbo_notification(self, title: str, message: str, status_type: str = "completed"):
+        """通过 Server酱Turbo 发送微信公众号通知"""
+        try:
+            # Server酱Turbo API URL
+            url = f"https://sctapi.ftqq.com/{self.config.SERVER_CHAN_TURBO_KEY}.send"
+            
+            # 根据状态类型选择emoji
+            emoji = "🤖"
+            if "error" in status_type:
+                emoji = "❌"
+            elif "success" in status_type:
+                emoji = "✅"
+            
+            # 格式化消息 - Turbo版本支持Markdown
+            formatted_title = f"{emoji} {title}"
+            formatted_message = f"**{message}**\n\n---\n\n⏰ 时间: `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n\n📡 来源: Claude Code Notifier"
+            
+            # 使用GET请求（推荐方式）
+            params = {
+                "title": formatted_title,
+                "desp": formatted_message
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code != 200:
+                print(f"Server酱Turbo 通知发送失败: {response.text}", file=sys.stderr)
+            else:
+                result = response.json()
+                if result.get('code') != 0:
+                    print(f"Server酱Turbo 通知发送失败: {result.get('message', 'Unknown error')}", file=sys.stderr)
+                else:
+                    # 成功时可以显示推送ID
+                    push_id = result.get('data', {}).get('pushid', '')
+                    if push_id:
+                        print(f"Server酱Turbo 通知发送成功, 推送ID: {push_id}")
+                
+        except Exception as e:
+            print(f"Server酱Turbo 通知发送失败: {e}", file=sys.stderr)
+    
     def send_ios_push_notification(self, title: str, message: str, status_type: str = "completed"):
         """通过 Bark 或类似服务发送 iOS 推送"""
         try:
@@ -264,6 +311,9 @@ class ClaudeNotifier:
         
         if self.config.ENABLE_SERVER_CHAN:
             self.send_server_chan_notification(title, message, status_type)
+        
+        if self.config.ENABLE_SERVER_CHAN_TURBO:
+            self.send_server_chan_turbo_notification(title, message, status_type)
 
 
 def main():
